@@ -1,3 +1,79 @@
+//! Platform agnostic Rust driver for Sensirion SVM40 device with
+//! gas, temperature and humidity sensors based on
+//! the [`embedded-hal`](https://github.com/japaric/embedded-hal) traits.
+//!
+//! ## Sensirion SVM40
+//!
+//! Sensirion SGPC3 is a low-power accurate gas sensor for air quality application.
+//! The sensor has different sampling rates to optimize power-consumption per application
+//! bases as well as ability save and set the baseline for faster start-up accuracy.
+//! The sensor uses I²C interface and measures TVOC (*Total Volatile Organic Compounds*)
+//!
+//! Evaluation board: https://www.sensirion.com/cn/environmental-sensors/evaluation-kit-sek-svm40/
+//!
+//! ## Usage
+//!
+//! ### Instantiating
+//!
+//! Import this crate and an `embedded_hal` implementation, then instantiate
+//! the device:
+//!
+//! ```no_run
+//! use linux_embedded_hal as hal;
+//!
+//! use hal::{Delay, I2cdev};
+//! use svm40::Svm40;
+//!
+//! fn main() {
+//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//!     let mut sgp = Svm40::new(dev, 0x6a, Delay);
+//! }
+//! ```
+//! ### Doing Measurements
+//!
+//! The device is doing measurements independently of the driver and calls to the device
+//! will just fetch the latest information making the usage easy.
+//!
+//! ```no_run
+//! use linux_embedded_hal as hal;
+//! use hal::{Delay, I2cdev};
+//!
+//! use std::time::Duration;
+//! use std::thread;
+//!
+//! use svm40::Svm40;
+//!
+//! fn main() {
+//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//!
+//!     let mut sensor = Svm40::new(dev, 0x6A, Delay);
+//!
+//!     let version = sensor.version().unwrap();
+//!
+//!     println!("Version information {:?}", version);
+//!
+//!     let mut serial = [0; 26];
+//!
+//!     sensor.serial(&mut serial).unwrap();
+//!
+//!     println!("Serial {:?}", serial);
+//!
+//!     sensor.start_measurement().unwrap();
+//!
+//!     thread::sleep(Duration::new(2_u64, 0));
+//!
+//!     for _ in 1..20 {
+//!         let signals = sensor.get_measurements().unwrap();
+//!         println!("Measurements: {:?}", signals);
+//!         thread::sleep(Duration::new(1_u64, 0));
+//!
+//!         let signals = sensor.get_raw_measurements().unwrap();
+//!         println!("Measurements: {:?}", signals);
+//!         thread::sleep(Duration::new(1_u64, 0));
+//!     }
+//!     sensor.stop_measurement().unwrap();
+//! }
+//! ```
 #![cfg_attr(not(test), no_std)]
 
 use embedded_hal as hal;
@@ -21,9 +97,9 @@ pub struct Signals {
 impl Signals {
     fn parse(data: &[u8]) -> Self {
         Signals {
-            voc_index : u16::from_be_bytes([data[0], data[1]]),
-            relative_humidity : u16::from_be_bytes([data[3], data[4]]),
-            temperature: u16::from_be_bytes([data[6], data[7]]),
+            voc_index: u16::from_be_bytes([data[0], data[1]]),
+            relative_humidity: u16::from_be_bytes([data[6], data[7]]),
+            temperature: u16::from_be_bytes([data[3], data[4]]),
         }
     }
 }
@@ -47,8 +123,8 @@ impl RawSignals {
         RawSignals {
             standard,
             voc_ticks_raw: u16::from_be_bytes([data[9], data[10]]),
-            uncompensated_relative_humidity: u16::from_be_bytes([data[12], data[13]]),
-            uncompensated_temperature: u16::from_be_bytes([data[15], data[16]]),
+            uncompensated_relative_humidity: u16::from_be_bytes([data[15], data[16]]),
+            uncompensated_temperature: u16::from_be_bytes([data[12], data[13]]),
         }
     }
 }
@@ -106,6 +182,7 @@ enum Command {
     /// Resets the device
     Reset,
     // TODO: Add get serial - supported in the code but not in spec.
+    Serial
 }
 
 impl Command {
@@ -125,6 +202,7 @@ impl Command {
             Command::SetVocStates => (0x6181, 1),
             Command::GetVersion => (0xd100, 1),
             Command::Reset => (0xd304, 1),
+            Command::Serial => (0xd033, 1)
         }
     }
 }
@@ -306,6 +384,22 @@ where
     #[inline]
     pub fn set_temperature_offset(&mut self, offset: u16) -> Result<&mut Self, Error<E>> {
         self.write_command_with_args(Command::SetTemperatureOffset, &offset.to_be_bytes())?;
+        Ok(self)
+    }
+
+    /// Gets the device serial number
+    pub fn serial(&mut self, serial: &mut [u8;26]) -> Result<&Self, Error<E>> {
+        let mut buffer = [0; 39];
+        self.delayed_read_cmd(Command::Serial, &mut buffer)?;
+
+        let mut i = 0;
+
+        for chunk in buffer.chunks(3) {
+            serial[i] = chunk[0];
+            i += 1;
+            serial[i] = chunk[1];
+            i += 1;
+        }
         Ok(self)
     }
 

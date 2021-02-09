@@ -6,7 +6,7 @@ Platform agnostic Rust device driver for Sensirion SGP40
 [![Crates.io Downloads][crates-io-download-badge]][crates-io-download]
 ![No Std][no-std-badge]
 
-Platform agnostic Rust driver for Sensirion SGPC3 gas sensor using the [`embedded-hal`](https://github.com/japaric/embedded-hal) traits.
+Platform agnostic Rust driver for Sensirion SGP40 gas sensor using the [`embedded-hal`](https://github.com/japaric/embedded-hal) traits.
 
 ## Sensirion SGP40
 

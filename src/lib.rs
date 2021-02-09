@@ -22,7 +22,7 @@
 //! use linux_embedded_hal as hal;
 //!
 //! use hal::{Delay, I2cdev};
-//! use svm40::Sgp40;
+//! use sgp40::Sgp40;
 //!
 //! fn main() {
 //!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
@@ -296,20 +296,20 @@ where
     /// Raw signal without temperature and humidity compensation. This is not
     /// VOC index but needs to be processed through different algorithm for that.
     #[inline]
-    pub fn measurements_raw(&mut self) -> Result<u16, Error<E>> {
-        self.measurements_raw_with_rht(0x8000, 0x6666)
+    pub fn measure_raw(&mut self) -> Result<u16, Error<E>> {
+        self.measure_raw_with_rht(50000, 25000)
     }
 
     /// Reads the raw signal from the sensor.
     ///
     /// Raw signal with temperature and humidity compensation. This is not
     /// VOC index but needs to be processed through different algorithm for that.
-    pub fn measurements_raw_with_rht(&mut self, humidity: u16, temperature: i16) -> Result<u16, Error<E>> {
+    pub fn measure_raw_with_rht(&mut self, humidity: u16, temperature: i16) -> Result<u16, Error<E>> {
         let mut data = [0; 3];
 
-        let (temp_ticks, hum_ticks) = self.convert_rht(humidity as u32, temperature as i32);
+        let (hum_ticks, temp_ticks) = self.convert_rht(humidity as u32, temperature as i32);
 
-        let params = [temp_ticks.to_be_bytes(), hum_ticks.to_be_bytes()].concat();
+        let params = [hum_ticks.to_be_bytes(), temp_ticks.to_be_bytes()].concat();
 
         self.write_command_with_args(Command::MeasurementRaw, &params)?;
         i2c::read_words_with_crc(&mut self.i2c, self.address, &mut data)?;
@@ -398,14 +398,14 @@ mod tests {
     /// Tests that the commands without parameters work
     #[test]
     fn test_basic_command() {
-        let (cmd, _) = Command::StartMeasurement.as_tuple();
+        let (cmd, _) = Command::MeasurementRaw.as_tuple();
         let expectations = [
-            Transaction::write(SGP40_ADDR, [cmd.to_be_bytes().to_vec(), [0x80, 0x00, 0xA2, 0x66, 0x66, 0x93]].concat()),
+            Transaction::write(SGP40_ADDR, [cmd.to_be_bytes().to_vec(), [0x7f, 0xfb, 0x4b, 0x66, 0x8a, 0x2f].to_vec()].concat()),
             Transaction::read(SGP40_ADDR, vec![0x12, 0x34, 0x37]),
         ];
         let mock = I2cMock::new(&expectations);
         let mut sensor = Sgp40::new(mock, SGP40_ADDR, DelayMock);
-        let result = sensor.measurements_raw().unwrap();
+        let result = sensor.measure_raw().unwrap();
         assert_eq!(result, 0x1234);
     }
 

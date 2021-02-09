@@ -16,10 +16,7 @@ Datasheet: https://www.sensirion.com/file/datasheet_sgp40
 
 ## Development status
 The sensor is feature complete and the future development evolves:
-- Improving the documentation
 - Moving into using Embedded-hal 1.x
-- Improve crate module tests
-- Maybe add async support (most waits are so short that it might not make sense)
 
 
 ## License

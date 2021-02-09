@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 description = "Rust driver for the Sensirion SGP40 gas sensor."
 readme = "README.md"
 repository = "https://github.com/mjaakkol/sgp40-rs"
-keywords = ["sgp40", "sensirion", "driver", "tvoc", "embedded-hal-driver"]
+keywords = ["sgp40", "sensirion", "driver", "voc", "embedded-hal-driver"]
 categories = ["embedded", "hardware-support", "no-std"]
 edition = "2018"
 

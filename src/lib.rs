@@ -83,6 +83,10 @@ use hal::blocking::i2c::{Read, Write, WriteRead};
 
 use sensirion_i2c::{crc8, i2c};
 
+mod vocalg;
+
+use crate::vocalg::VocAlgorithm;
+
 /// Standard signal measurement
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Signals {
@@ -186,12 +190,13 @@ impl Command {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Sgp40<I2C, D> {
     i2c: I2C,
     address: u8,
     delay: D,
     temperature_offset: i16,
+    voc: VocAlgorithm,
 }
 
 impl<I2C, D, E> Sgp40<I2C, D>
@@ -204,7 +209,8 @@ where
             i2c,
             address,
             delay,
-            temperature_offset: 0
+            temperature_offset: 0,
+            voc : VocAlgorithm::new()
         }
     }
 
@@ -290,6 +296,17 @@ where
         self.write_command(Command::SoftReset)?;
         Ok(self)
     }
+
+    /// Reads the voc index from the sensor.
+    ///
+    /// Reads voc index.
+    #[inline]
+    pub fn measure_voc_index(&mut self) -> Result<u16, Error<E>> {
+        let raw = self.measure_raw_with_rht(50000, 25000)?;
+
+        Ok(self.voc.process(raw as i32) as u16)
+    }
+
 
     /// Reads the raw signal from the sensor.
     ///

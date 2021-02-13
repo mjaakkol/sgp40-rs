@@ -16,14 +16,18 @@ fn main() {
     //println!("Serial number is {:x}", serial);
 
     loop {
-        let raw = sensor.measure_raw().unwrap();
+        //let raw = sensor.measure_raw().unwrap();
 
-        println!("RAW: {}", raw);
+        //println!("RAW: {}", raw);
 
-        thread::sleep(Duration::new(1_u64, 0));
+        let index = sensor.measure_voc_index().unwrap();
 
-        let raw = sensor.measure_raw_with_rht(50,25).unwrap();
-        println!("RAW {}", raw);
+        println!("VOC index: {}", index);
+
+        //thread::sleep(Duration::new(1_u64, 0));
+
+        //let raw = sensor.measure_raw_with_rht(50,25).unwrap();
+        //println!("RAW {}", raw);
 
         thread::sleep(Duration::new(1_u64, 0));
     }

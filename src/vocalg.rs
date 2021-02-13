@@ -114,6 +114,7 @@ impl VocAlgorithm {
     pub fn process(&mut self, sraw: i32) -> i32 {
         if  self.uptime <= INITIAL_BLACKOUT {
             self.uptime += SAMPLING_INTERVAL;
+            println!("Initial blackout");
         }
         else {
             assert!(sraw > 0 && sraw < 65000);
@@ -130,19 +131,27 @@ impl VocAlgorithm {
 
             self.sraw = (sraw - 20000) as f32;
 
+            println!("SRAW: {}", self.sraw);
+
             self.voc_index = self.mox_model.process(self.sraw);
+            println!("After Mox: {}", self.voc_index);
+
             self.voc_index = self.sigmoid_scaled.process(self.voc_index);
+            println!("After Sigmoid scaled: {}", self.voc_index);
+
             self.voc_index = self.adaptive_lowpass.process(self.voc_index);
+            println!("After Adaptive lowpass: {}", self.voc_index);
 
             if self.voc_index < 0.5 {
                 self.voc_index = 0.5;
             }
 
-            if self.sraw > 0.0 {
+            //if self.sraw > 0.0 {
                 self.mean_variance_estimator.process(self.sraw, self.voc_index);
                 self.mox_model = MoxModel::new(self.mean_variance_estimator.get_std(), self.mean_variance_estimator.get_mean());
-            }
+            //}
         }
+        println!("VOC index: {}", self.voc_index);
         (self.voc_index + 0.5) as i32
     }
 }
@@ -254,19 +263,18 @@ impl MeanVarianceEstimator {
 
         let gating_threshold_variance = GATING_THRESHOLD + (GATING_THRESHOLD_INITIAL - GATING_THRESHOLD) * self.sigmoid.process(self.uptime_gating);
 
-        self.sigmoid.set_parameters(1.0, gating_threshold_variance, GATING_THRESHOLD_TRANSITION);
+        self.sigmoid.set_parameters(1., gating_threshold_variance, GATING_THRESHOLD_TRANSITION);
 
         let sigmoid_gating_variance = self.sigmoid.process(voc_index_from_prior);
 
         self.gamma_variance = sigmoid_gating_variance * gamma_variance;
 
-        self.gating_duration_minutes += (SAMPLING_INTERVAL*60.) * (((1. - sigmoid_gating_mean) * (1. + GATING_MAX_RATIO)) - GATING_MAX_RATIO);
+        self.gating_duration_minutes += (SAMPLING_INTERVAL / 60.) * (((1. - sigmoid_gating_mean) * (1. + GATING_MAX_RATIO)) - GATING_MAX_RATIO);
 
         if self.gating_duration_minutes < 0. {
             self.gating_duration_minutes = 0.;
         }
 
-        // TODO: Fix. extra comparison
         if self.gating_duration_minutes > self.gating_max_duration_minutes {
             self.uptime_gating = 0.0;
         }
@@ -309,7 +317,7 @@ impl MeanVarianceEstimator {
                     (((self.gamma_variance * delta_sgp) / additional_scaling) * delta_sgp)
                 ).sqrt();
 
-            self.mean *= self.gamma_mean * delta_sgp;
+            self.mean += self.gamma_mean * delta_sgp;
         }
     }
 
@@ -410,7 +418,7 @@ impl MoxModel {
     */
 
     fn process(&self, sraw: f32) -> f32 {
-        (sraw - self.sraw_mean) / (-(self.sraw_std + SRAW_STD_BONUS)) * VOC_INDEX_GAIN
+        ((sraw - self.sraw_mean) / (-(self.sraw_std + SRAW_STD_BONUS))) * VOC_INDEX_GAIN
     }
 }
 
@@ -444,12 +452,12 @@ impl AdaptiveLowpass {
             self.initialized = true;
         }
 
-        self.X1 = (1_f32 - self.A1) * self.X1 + self.A1*sample;
-        self.X2 = (1_f32 - self.A2) * self.X2 + self.A2*sample;
+        self.X1 = (1. - self.A1) * self.X1 + self.A1*sample;
+        self.X2 = (1. - self.A2) * self.X2 + self.A2*sample;
 
         let abs_delta = (self.X1 - self.X2).abs();
         let F1 = (LP_ALPHA * abs_delta).exp();
-        let tau_a = ((LP_TAU_FAST - LP_TAU_SLOW) * F1) + LP_TAU_FAST;
+        let tau_a = ((LP_TAU_SLOW - LP_TAU_FAST) * F1) + LP_TAU_FAST;
         let a3 = SAMPLING_INTERVAL / (SAMPLING_INTERVAL + tau_a);
         self.X3 = (1. - a3) * self.X3 + a3 * sample;
         self.X3

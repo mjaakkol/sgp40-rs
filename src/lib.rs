@@ -74,7 +74,7 @@
 //!     sensor.stop_measurement().unwrap();
 //! }
 //! ```
-#![cfg_attr(not(test), no_std)]
+//#![cfg_attr(not(test), no_std)]
 
 use embedded_hal as hal;
 

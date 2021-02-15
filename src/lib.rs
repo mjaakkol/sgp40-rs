@@ -197,6 +197,7 @@ pub struct Sgp40<I2C, D> {
     delay: D,
     temperature_offset: i16,
     voc: VocAlgorithm,
+    raw: i32,
 }
 
 impl<I2C, D, E> Sgp40<I2C, D>
@@ -210,7 +211,8 @@ where
             address,
             delay,
             temperature_offset: 0,
-            voc : VocAlgorithm::new()
+            voc : VocAlgorithm::new(),
+            raw: 27990,
         }
     }
 
@@ -302,9 +304,10 @@ where
     /// Reads voc index.
     #[inline]
     pub fn measure_voc_index(&mut self) -> Result<u16, Error<E>> {
-        let raw = self.measure_raw_with_rht(50000, 25000)?;
+        //let raw = self.measure_raw_with_rht(50000, 25000)?;
+        self.raw += 10;
 
-        Ok(self.voc.process(raw as i32) as u16)
+        Ok(self.voc.process(self.raw as i32) as u16)
     }
 
 

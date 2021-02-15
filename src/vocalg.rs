@@ -1,30 +1,31 @@
-const SAMPLING_INTERVAL:f32 = 1_f32;
-const INITIAL_BLACKOUT:f32 = 45.0;
-const VOC_INDEX_GAIN:f32 = 230_f32;
-const SRAW_STD_INITIAL:f32 = 50_f32;
-const SRAW_STD_BONUS:f32 = 220_f32;
-const TAU_MEAN_VARIANCE_HOURS:f32 = 12_f32;
-const TAU_INITIAL_MEAN:f32 = 20_f32;
+const SAMPLING_INTERVAL:f32 = 1.;
+const INITIAL_BLACKOUT:f32 = 1.;
+//const INITIAL_BLACKOUT:f32 = 45.0;
+const VOC_INDEX_GAIN:f32 = 230.;
+const SRAW_STD_INITIAL:f32 = 50.;
+const SRAW_STD_BONUS:f32 = 220.;
+const TAU_MEAN_VARIANCE_HOURS:f32 = 12.;
+const TAU_INITIAL_MEAN:f32 = 20.;
 const INIT_DURATION_MEAN:f32 = 3600. * 0.75;
 const INIT_TRANSITION_MEAN:f32 = 0.01;
-const TAU_INITIAL_VARIANCE:f32 = 2500_f32;
+const TAU_INITIAL_VARIANCE:f32 = 2500.;
 const INIT_DURATION_VARIANCE:f32 = 3600. * 1.45;
 const INIT_TRANSITION_VARIANCE:f32 = 0.01;
-const GATING_THRESHOLD:f32 = 340_f32;
-const GATING_THRESHOLD_INITIAL:f32 = 510_f32;
+const GATING_THRESHOLD:f32 = 340.;
+const GATING_THRESHOLD_INITIAL:f32 = 510.;
 const GATING_THRESHOLD_TRANSITION:f32 = 0.09;
 const GATING_MAX_DURATION_MINUTES:f32 = 60.0 * 3.0;
 const GATING_MAX_RATIO:f32 = 0.3;
-const SIGMOID_L:f32 = 500_f32;
+const SIGMOID_L:f32 = 500.;
 const SIGMOID_K:f32 = -0.0065;
-const SIGMOID_X0:f32 = 213_f32;
-const VOC_INDEX_OFFSET_DEFAULT:f32 = 100_f32;
-const LP_TAU_FAST:f32 = 20.0;
-const LP_TAU_SLOW: f32 = 500.0;
+const SIGMOID_X0:f32 = 213.;
+const VOC_INDEX_OFFSET_DEFAULT:f32 = 100.;
+const LP_TAU_FAST:f32 = 20.;
+const LP_TAU_SLOW: f32 = 500.;
 const LP_ALPHA: f32 = -0.2;
 const PERSISTENCE_UPTIME_GAMMA: f32 = 3.0 * 3600.0;
-const MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING: f32 = 64_f32;
-const MEAN_VARIANCE_ESTIMATOR__FIX16_MAX: f32 = 32767_f32;
+const MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING: f32 = 64.;
+const MEAN_VARIANCE_ESTIMATOR__FIX16_MAX: f32 = 32767.;
 
 /**
  * Struct to hold all the states of the VOC algorithm.
@@ -56,7 +57,7 @@ impl VocAlgorithm {
                 GATING_MAX_DURATION_MINUTES,
                 VOC_INDEX_OFFSET_DEFAULT);
 
-        VocAlgorithm {
+        let alg = VocAlgorithm {
             voc_index_offset: VOC_INDEX_OFFSET_DEFAULT,
             tau_mean_variance_hours: TAU_MEAN_VARIANCE_HOURS,
             gating_max_duration_minutes: GATING_MAX_DURATION_MINUTES,
@@ -69,7 +70,10 @@ impl VocAlgorithm {
             mox_model,
             sigmoid_scaled,
             adaptive_lowpass
-        }
+        };
+
+        println!("Alg {:?}", alg);
+        alg
     }
 
     fn new_instances(sraw_std_initial: f32, tau_mean_variance_hours: f32, gating_max_duration_minutes: f32, voc_index_offset: f32) -> (MeanVarianceEstimator, MoxModel, SigmoidScaledInit, AdaptiveLowpass) {
@@ -146,12 +150,12 @@ impl VocAlgorithm {
                 self.voc_index = 0.5;
             }
 
-            //if self.sraw > 0.0 {
+            if self.sraw > 0.0 {
                 self.mean_variance_estimator.process(self.sraw, self.voc_index);
+                println!("Est std:{} mean:{}", self.mean_variance_estimator.get_std(),self.mean_variance_estimator.get_mean());
                 self.mox_model = MoxModel::new(self.mean_variance_estimator.get_std(), self.mean_variance_estimator.get_mean());
-            //}
+            }
         }
-        println!("VOC index: {}", self.voc_index);
         (self.voc_index + 0.5) as i32
     }
 }
@@ -225,12 +229,14 @@ impl MeanVarianceEstimator {
     }
 
     fn get_mean(&self) -> f32 {
-        self.mean
+        self.mean + self.sraw_offset
     }
 
     fn calculate_gamma(&mut self, voc_index_from_prior: f32) {
         // Check this as we are likely running in 32-bit environment
-        let uptime_limit = MEAN_VARIANCE_ESTIMATOR__FIX16_MAX - SAMPLING_INTERVAL;
+        const uptime_limit:f32 = MEAN_VARIANCE_ESTIMATOR__FIX16_MAX - SAMPLING_INTERVAL;
+
+        //println!("Updatime gamma:{}", self.uptime_gamma);
 
         if self.uptime_gamma < uptime_limit {
             self.uptime_gamma += SAMPLING_INTERVAL;
@@ -240,7 +246,7 @@ impl MeanVarianceEstimator {
             self.uptime_gating += SAMPLING_INTERVAL;
         }
 
-        self.set_parameters(1., INIT_DURATION_MEAN, INIT_TRANSITION_MEAN);
+        self.sigmoid.set_parameters(1., INIT_DURATION_MEAN, INIT_TRANSITION_MEAN);
 
         let sigmoid_gamma_mean = self.sigmoid.process(self.uptime_gamma);
 
@@ -287,22 +293,21 @@ impl MeanVarianceEstimator {
             self.mean = 0.;
         }
         else {
-            if self.mean >= 100.0 || self.mean <= -100. {
+            if self.mean >= 100. || self.mean <= -100. {
                 self.sraw_offset += self.mean;
+                self.mean = 0.;
+                println!("Mean reset");
             }
 
-            let sraw = self.sraw_offset;
+            let sraw = sraw - self.sraw_offset;
 
             self.calculate_gamma(voc_index_from_prior);
 
+            println!("Gamma variance:{}", self.gamma_variance);
+
             let delta_sgp = (sraw - self.mean) / MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING;
 
-            let c = if delta_sgp < 0. {
-                self.std - delta_sgp
-            }
-            else {
-                self.std + delta_sgp
-            };
+            let c = self.std + delta_sgp.abs();
 
             let additional_scaling = if c > 1440. {
                 4.
@@ -318,6 +323,8 @@ impl MeanVarianceEstimator {
                 ).sqrt();
 
             self.mean += self.gamma_mean * delta_sgp;
+
+            println!("Final mean:{} std:{}", self.mean, self.std);
         }
     }
 
@@ -343,6 +350,8 @@ impl MeanVarianceEstimatorSigmoid {
     fn process(&self, sample: f32) -> f32 {
         let x = self.K * (sample - self.X0);
 
+        //println!("Sigmoid: sample:{} x:{}", sample, x);
+
         if x < -50. {
             return self.L;
         }
@@ -350,7 +359,9 @@ impl MeanVarianceEstimatorSigmoid {
             return 0.
         }
         else {
-            return self.L / (1. + x.exp());
+            let result = self.L / (1. + fixed_exp(x));
+            //println!("Sigmoid:{}", result);
+            return result;
         }
     }
 
@@ -361,6 +372,19 @@ impl MeanVarianceEstimatorSigmoid {
         self.X0 = X0;
     }
 }
+
+
+// Needs new implementation as the original code prevents going above 16-bit ranges
+fn fixed_exp(x: f32) -> f32 {
+    let result = x.exp();
+    if result > 32768.0 {
+        32768.0
+    }
+    else {
+        result
+    }
+}
+
 
 #[derive(Debug)]
 struct SigmoidScaledInit {
@@ -374,6 +398,7 @@ impl SigmoidScaledInit {
         }
     }
 
+
     fn process(&self, sample: f32) -> f32 {
         let x = SIGMOID_K * (sample - SIGMOID_X0);
 
@@ -384,12 +409,14 @@ impl SigmoidScaledInit {
             return 0.
         }
         else {
+            //println!("Sample {}, offset:{} X:{}", sample, self.offset, x);
             if sample >= 0. {
                 let shift = (SIGMOID_L - (5. * self.offset)) / 4.;
-                return ((SIGMOID_L + shift) / (1. + x.exp())) - shift;
+                return ((SIGMOID_L + shift) / (1. + fixed_exp(x))) - shift;
             }
             else {
-                return (self.offset / VOC_INDEX_OFFSET_DEFAULT) * (SIGMOID_L / (1. + x.exp()));
+                //println!("X^{}", SigmoidScaledInit::exp(x));
+                return (self.offset / VOC_INDEX_OFFSET_DEFAULT) * (SIGMOID_L / (1. + fixed_exp(x)));
             }
         }
     }
@@ -409,13 +436,6 @@ impl MoxModel {
             sraw_mean,
         }
     }
-
-    /*
-    fn set_parameters(&mut self, sraw_std: f32, sraw_mean: f32) {
-        self.sraw_std = sraw_std;
-        self.sraw_mean = sraw_mean;
-    }
-    */
 
     fn process(&self, sraw: f32) -> f32 {
         ((sraw - self.sraw_mean) / (-(self.sraw_std + SRAW_STD_BONUS))) * VOC_INDEX_GAIN
@@ -456,7 +476,7 @@ impl AdaptiveLowpass {
         self.X2 = (1. - self.A2) * self.X2 + self.A2*sample;
 
         let abs_delta = (self.X1 - self.X2).abs();
-        let F1 = (LP_ALPHA * abs_delta).exp();
+        let F1 = fixed_exp(LP_ALPHA * abs_delta);
         let tau_a = ((LP_TAU_SLOW - LP_TAU_FAST) * F1) + LP_TAU_FAST;
         let a3 = SAMPLING_INTERVAL / (SAMPLING_INTERVAL + tau_a);
         self.X3 = (1. - a3) * self.X3 + a3 * sample;

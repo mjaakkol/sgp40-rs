@@ -1,0 +1,38 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+
+  ensure_no_std:
+    name: Ensure no_std
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Download cargo-nono
+        run: |
+          wget https://github.com/hobofan/cargo-nono/releases/download/0.1.9/cargo-nono-0.1.9-x86_64-unknown-linux-gnu.tar.gz \
+            && tar xfvz cargo-nono-0.1.9-x86_64-unknown-linux-gnu.tar.gz
+      - name: Run check
+        run: ./cargo-nono check

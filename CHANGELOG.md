@@ -7,4 +7,4 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## 0.0.1 - 2021-02-09
 
-Initial release to crates.io. The crate moves into 0.1.x versioning after embedded-hal change.
+Initial release to crates.io.

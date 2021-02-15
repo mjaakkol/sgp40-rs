@@ -46,35 +46,28 @@
 //! fn main() {
 //!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
 //!
-//!     let mut sensor = Sgp40::new(dev, 0x6A, Delay);
+//!     let mut sensor = Sgp40::new(dev, 0x59, Delay);
 //!
-//!     let version = sensor.version().unwrap();
+//!     // Discard the first 45 samples as the algorithm is just warming up.
+//!     for _ in 1..45 {
+//!         sensor.measure_voc_index().unwrap();
+//!     }
 //!
-//!     println!("Version information {:?}", version);
+//!     loop {
+//!         if let Ok(result) = sensor.measure_voc_index() {
+//!             println!("VOC index: {}", result);
+//!         }
+//!         else {
+//!             println!("Failed I2C reading");
+//!         }
 //!
-//!     let mut serial = [0; 26];
-//!
-//!     sensor.serial(&mut serial).unwrap();
-//!
-//!     println!("Serial {:?}", serial);
-//!
-//!     sensor.start_measurement().unwrap();
-//!
-//!     thread::sleep(Duration::new(2_u64, 0));
-//!
-//!     for _ in 1..20 {
-//!         let signals = sensor.get_measurements().unwrap();
-//!         println!("Measurements: {:?}", signals);
-//!         thread::sleep(Duration::new(1_u64, 0));
-//!
-//!         let signals = sensor.get_raw_measurements().unwrap();
-//!         println!("Measurements: {:?}", signals);
 //!         thread::sleep(Duration::new(1_u64, 0));
 //!     }
-//!     sensor.stop_measurement().unwrap();
 //! }
 //! ```
-//#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(test), no_std)]
+#![allow(non_snake_case)]
+#![allow(dead_code)]
 
 use embedded_hal as hal;
 
@@ -86,53 +79,6 @@ use sensirion_i2c::{crc8, i2c};
 mod vocalg;
 
 use crate::vocalg::VocAlgorithm;
-
-/// Standard signal measurement
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Signals {
-    /// VOC algorithm output with a scaling value of 10.
-    voc_index: u16,
-    /// Compensated ambient humidity in %RH with a scaling factor of 100.
-    relative_humidity: u16,
-    /// Compensated ambient temperature in degree celsius with a scaling factor of 200.
-    temperature: u16,
-}
-
-impl Signals {
-    fn parse(data: &[u8]) -> Self {
-        Signals {
-            voc_index: u16::from_be_bytes([data[0], data[1]]),
-            relative_humidity: u16::from_be_bytes([data[6], data[7]]),
-            temperature: u16::from_be_bytes([data[3], data[4]]),
-        }
-    }
-}
-
-/// Raw signal measurement. Raw signals include the standard signals.
-#[derive(Debug, Copy, Clone)]
-pub struct RawSignals {
-    standard: Signals,
-    /// Raw VOC output ticks as read from the SGP sensor.
-    voc_ticks_raw: u16,
-    /// Uncompensated raw humidity in %RH as read from the SHT40 with a scaling factor of 100.
-    uncompensated_relative_humidity: u16,
-    /// Uncompensated raw temperature in degrees celsius as read from the SHT40 with a scaling of 200.
-    uncompensated_temperature: u16,
-}
-
-impl RawSignals {
-    fn parse(data: &[u8]) -> Self {
-        let standard = Signals::parse(&data[0..9]);
-
-        RawSignals {
-            standard,
-            voc_ticks_raw: u16::from_be_bytes([data[9], data[10]]),
-            uncompensated_relative_humidity: u16::from_be_bytes([data[15], data[16]]),
-            uncompensated_temperature: u16::from_be_bytes([data[12], data[13]]),
-        }
-    }
-}
-
 
 /// Sgp40 errors
 #[derive(Debug)]
@@ -190,14 +136,18 @@ impl Command {
     }
 }
 
-#[derive(Debug)]
+/// Sgp40 driver instance
+///
+/// Create the driver instance with valid I²C address (0x59) and then it is just
+/// rock'n'roll. This driver doesn't require special starting but once can start to
+/// make measurements right away. However, the initial values after start-up will
+/// unstable so you will want to throw away some of them.
 pub struct Sgp40<I2C, D> {
     i2c: I2C,
     address: u8,
     delay: D,
     temperature_offset: i16,
     voc: VocAlgorithm,
-    raw: i32,
 }
 
 impl<I2C, D, E> Sgp40<I2C, D>
@@ -205,6 +155,7 @@ where
     I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
     D: DelayMs<u32>,
 {
+    /// Creates Sgp40 driver
     pub fn new(i2c: I2C, address: u8, delay: D) -> Self {
         Sgp40 {
             i2c,
@@ -212,7 +163,6 @@ where
             delay,
             temperature_offset: 0,
             voc : VocAlgorithm::new(),
-            raw: 27990,
         }
     }
 
@@ -301,13 +251,29 @@ where
 
     /// Reads the voc index from the sensor.
     ///
-    /// Reads voc index.
+    /// Reads VOC index. Driver is using Sensirion proprietary algortihm and it takes minimum
+    /// 45 reads to start working. These reads should be made with 1Hz interval to keep the
+    /// algoritm working.
     #[inline]
     pub fn measure_voc_index(&mut self) -> Result<u16, Error<E>> {
-        //let raw = self.measure_raw_with_rht(50000, 25000)?;
-        self.raw += 10;
+        let raw = self.measure_raw_with_rht(50000, 25000)?;
 
-        Ok(self.voc.process(self.raw as i32) as u16)
+        Ok(self.voc.process(raw as i32) as u16)
+    }
+
+    /// Reads the voc index from the sensor with humidity and temperature compensation.
+    ///
+    /// Reads VOC index with humidity and temperature compensation. Both values us milli-notation where
+    /// 25°C is equivalent of 25000 and 50% humidity equals 50000.
+    ///
+    /// Driver is using Sensirion proprietary algortihm and it takes minimum
+    /// 45 reads to start working. These reads should be made with 1Hz interval to keep the
+    /// algoritm working.
+    #[inline]
+    pub fn measure_voc_index_with_rht(&mut self, humidity: u16, temperature: i16) -> Result<u16, Error<E>> {
+        let raw = self.measure_raw_with_rht(humidity, temperature)?;
+
+        Ok(self.voc.process(raw as i32) as u16)
     }
 
 

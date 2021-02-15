@@ -1,4 +1,4 @@
-// Sensirion SGP40 sensor device driver example.
+/// Sensirion SGP40 sensor device driver example.
 use linux_embedded_hal as hal;
 use hal::{Delay, I2cdev};
 
@@ -12,22 +12,15 @@ fn main() {
 
     let mut sensor = Sgp40::new(dev, 0x59, Delay);
 
-    //let serial = sensor.serial().unwrap();
-    //println!("Serial number is {:x}", serial);
-
     loop {
-        //let raw = sensor.measure_raw().unwrap();
-
-        //println!("RAW: {}", raw);
-
-        let index = sensor.measure_voc_index().unwrap();
-
-        println!("VOC index: {}", index);
-
-        //thread::sleep(Duration::new(1_u64, 0));
-
-        //let raw = sensor.measure_raw_with_rht(50,25).unwrap();
-        //println!("RAW {}", raw);
+        // This is not the recommended way to operate the sensor but turned out to be
+        // super useful when running two sensors parallel.
+        if let Ok(result) = sensor.measure_voc_index() {
+            println!("VOC index: {}", result);
+        }
+        else {
+            println!("Failed I2C reading");
+        }
 
         thread::sleep(Duration::new(1_u64, 0));
     }

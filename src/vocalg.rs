@@ -1,6 +1,39 @@
+/// This work is a port of Sensirion VOC indexing algorithm from
+/// https://github.com/Sensirion/embedded-sgp/tree/master/sgp40_voc_index
+
+/*
+ * Copyright (c) 2020, Sensirion AG
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * * Neither the name of Sensirion AG nor the names of its
+ *   contributors may be used to endorse or promote products derived from
+ *   this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 const SAMPLING_INTERVAL:f32 = 1.;
-const INITIAL_BLACKOUT:f32 = 1.;
-//const INITIAL_BLACKOUT:f32 = 45.0;
+const INITIAL_BLACKOUT:f32 = 45.0;
 const VOC_INDEX_GAIN:f32 = 230.;
 const SRAW_STD_INITIAL:f32 = 50.;
 const SRAW_STD_BONUS:f32 = 220.;
@@ -27,10 +60,9 @@ const PERSISTENCE_UPTIME_GAMMA: f32 = 3.0 * 3600.0;
 const MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING: f32 = 64.;
 const MEAN_VARIANCE_ESTIMATOR__FIX16_MAX: f32 = 32767.;
 
-/**
- * Struct to hold all the states of the VOC algorithm.
- */
-#[derive(Debug)]
+
+
+// Stores VOC algorithm states
 pub struct VocAlgorithm {
     voc_index_offset: f32,
     tau_mean_variance_hours: f32,
@@ -39,8 +71,6 @@ pub struct VocAlgorithm {
     uptime: f32,
     sraw: f32,
     voc_index: f32,
-
-    // Initialize substructures
     mean_variance_estimator: MeanVarianceEstimator,
     mox_model: MoxModel,
     sigmoid_scaled: SigmoidScaledInit,
@@ -57,23 +87,19 @@ impl VocAlgorithm {
                 GATING_MAX_DURATION_MINUTES,
                 VOC_INDEX_OFFSET_DEFAULT);
 
-        let alg = VocAlgorithm {
+        VocAlgorithm {
             voc_index_offset: VOC_INDEX_OFFSET_DEFAULT,
             tau_mean_variance_hours: TAU_MEAN_VARIANCE_HOURS,
             gating_max_duration_minutes: GATING_MAX_DURATION_MINUTES,
             sraw_std_initial: SRAW_STD_INITIAL,
-            uptime: 0.0,
-            sraw: 0.0,
-            voc_index: 0.0,
-
+            uptime: 0.,
+            sraw: 0.,
+            voc_index: 0.,
             mean_variance_estimator,
             mox_model,
             sigmoid_scaled,
             adaptive_lowpass
-        };
-
-        println!("Alg {:?}", alg);
-        alg
+        }
     }
 
     fn new_instances(sraw_std_initial: f32, tau_mean_variance_hours: f32, gating_max_duration_minutes: f32, voc_index_offset: f32) -> (MeanVarianceEstimator, MoxModel, SigmoidScaledInit, AdaptiveLowpass) {
@@ -81,7 +107,6 @@ impl VocAlgorithm {
         mean_variance_estimator.set_parameters(sraw_std_initial, tau_mean_variance_hours, gating_max_duration_minutes);
 
         let mox_model = MoxModel::new(mean_variance_estimator.get_std(), mean_variance_estimator.get_mean());
-        //mox_model.set_parameters();
 
         let sigmoid_scaled = SigmoidScaledInit::new(voc_index_offset);
 
@@ -95,6 +120,7 @@ impl VocAlgorithm {
         (self.mean_variance_estimator.get_mean() as i32, self.mean_variance_estimator.get_std() as i32)
     }
 
+    /// Used for setting state0 and state1 to return to the previously calibrated states.
     pub fn set_states(&mut self, state0: i32, state1: i32) {
         self.mean_variance_estimator.set_states(state0 as f32, state1 as f32, PERSISTENCE_UPTIME_GAMMA);
         self.sraw = state0 as f32;
@@ -118,7 +144,6 @@ impl VocAlgorithm {
     pub fn process(&mut self, sraw: i32) -> i32 {
         if  self.uptime <= INITIAL_BLACKOUT {
             self.uptime += SAMPLING_INTERVAL;
-            println!("Initial blackout");
         }
         else {
             assert!(sraw > 0 && sraw < 65000);
@@ -135,16 +160,16 @@ impl VocAlgorithm {
 
             self.sraw = (sraw - 20000) as f32;
 
-            println!("SRAW: {}", self.sraw);
+            //println!("SRAW: {}", self.sraw);
 
             self.voc_index = self.mox_model.process(self.sraw);
-            println!("After Mox: {}", self.voc_index);
+            //println!("After Mox: {}", self.voc_index);
 
             self.voc_index = self.sigmoid_scaled.process(self.voc_index);
-            println!("After Sigmoid scaled: {}", self.voc_index);
+            //println!("After Sigmoid scaled: {}", self.voc_index);
 
             self.voc_index = self.adaptive_lowpass.process(self.voc_index);
-            println!("After Adaptive lowpass: {}", self.voc_index);
+            //println!("After Adaptive lowpass: {}", self.voc_index);
 
             if self.voc_index < 0.5 {
                 self.voc_index = 0.5;
@@ -152,7 +177,7 @@ impl VocAlgorithm {
 
             if self.sraw > 0.0 {
                 self.mean_variance_estimator.process(self.sraw, self.voc_index);
-                println!("Est std:{} mean:{}", self.mean_variance_estimator.get_std(),self.mean_variance_estimator.get_mean());
+                //println!("Est std:{} mean:{}", self.mean_variance_estimator.get_std(),self.mean_variance_estimator.get_mean());
                 self.mox_model = MoxModel::new(self.mean_variance_estimator.get_std(), self.mean_variance_estimator.get_mean());
             }
         }
@@ -160,7 +185,7 @@ impl VocAlgorithm {
     }
 }
 
-#[derive(Debug)]
+
 struct MeanVarianceEstimator {
     gating_max_duration_minutes: f32,
     mean: f32,
@@ -234,7 +259,7 @@ impl MeanVarianceEstimator {
 
     fn calculate_gamma(&mut self, voc_index_from_prior: f32) {
         // Check this as we are likely running in 32-bit environment
-        const uptime_limit:f32 = MEAN_VARIANCE_ESTIMATOR__FIX16_MAX - SAMPLING_INTERVAL;
+        let uptime_limit = MEAN_VARIANCE_ESTIMATOR__FIX16_MAX - SAMPLING_INTERVAL;
 
         //println!("Updatime gamma:{}", self.uptime_gamma);
 
@@ -296,14 +321,14 @@ impl MeanVarianceEstimator {
             if self.mean >= 100. || self.mean <= -100. {
                 self.sraw_offset += self.mean;
                 self.mean = 0.;
-                println!("Mean reset");
+                //println!("Mean reset");
             }
 
             let sraw = sraw - self.sraw_offset;
 
             self.calculate_gamma(voc_index_from_prior);
 
-            println!("Gamma variance:{}", self.gamma_variance);
+            //println!("Gamma variance:{}", self.gamma_variance);
 
             let delta_sgp = (sraw - self.mean) / MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING;
 
@@ -324,19 +349,17 @@ impl MeanVarianceEstimator {
 
             self.mean += self.gamma_mean * delta_sgp;
 
-            println!("Final mean:{} std:{}", self.mean, self.std);
+            //println!("Final mean:{} std:{}", self.mean, self.std);
         }
     }
 
 }
 
-#[derive(Debug)]
 struct MeanVarianceEstimatorSigmoid {
     L: f32,
     K: f32,
     X0: f32,
 }
-
 
 impl MeanVarianceEstimatorSigmoid {
     fn new() -> Self {
@@ -386,7 +409,6 @@ fn fixed_exp(x: f32) -> f32 {
 }
 
 
-#[derive(Debug)]
 struct SigmoidScaledInit {
     offset: f32
 }
@@ -423,7 +445,6 @@ impl SigmoidScaledInit {
 
 }
 
-#[derive(Debug)]
 struct MoxModel {
     sraw_std: f32,
     sraw_mean: f32
@@ -442,7 +463,6 @@ impl MoxModel {
     }
 }
 
-#[derive(Debug)]
 struct AdaptiveLowpass {
     A1: f32,
     A2: f32,

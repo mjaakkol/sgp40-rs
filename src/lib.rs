@@ -26,7 +26,7 @@
 //!
 //! fn main() {
 //!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
-//!     let mut sgp = Sgp40::new(dev, 0x6a, Delay);
+//!     let mut sgp = Sgp40::new(dev, 0x59, Delay);
 //! }
 //! ```
 //! ### Doing Measurements
@@ -346,7 +346,6 @@ where
     /// Gets the temperature offset
     ///
     /// Gets the temperature compensation offset issues to the device.
-    /// TODO: For some reason, this functions results CRC error.
     pub fn get_temperature_offset(&mut self) -> Result<i16, Error<E>> {
         Ok(self.temperature_offset)
     }

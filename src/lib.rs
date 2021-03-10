@@ -76,8 +76,10 @@ use hal::blocking::i2c::{Read, Write, WriteRead};
 
 use sensirion_i2c::{crc8, i2c};
 
+#[cfg(feature = "voc_index")]
 mod vocalg;
 
+#[cfg(feature = "voc_index")]
 use crate::vocalg::VocAlgorithm;
 
 /// Sgp40 errors
@@ -147,6 +149,7 @@ pub struct Sgp40<I2C, D> {
     address: u8,
     delay: D,
     temperature_offset: i16,
+    #[cfg(feature = "voc_index")]
     voc: VocAlgorithm,
 }
 
@@ -162,6 +165,7 @@ where
             address,
             delay,
             temperature_offset: 0,
+            #[cfg(feature = "voc_index")]
             voc : VocAlgorithm::new(),
         }
     }
@@ -254,6 +258,7 @@ where
     /// Reads VOC index. Driver is using Sensirion proprietary algortihm and it takes minimum
     /// 45 reads to start working. These reads should be made with 1Hz interval to keep the
     /// algoritm working.
+    #[cfg(feature = "voc_index")]
     #[inline]
     pub fn measure_voc_index(&mut self) -> Result<u16, Error<E>> {
         let raw = self.measure_raw_with_rht(50000, 25000)?;
@@ -269,6 +274,7 @@ where
     /// Driver is using Sensirion proprietary algortihm and it takes minimum
     /// 45 reads to start working. These reads should be made with 1Hz interval to keep the
     /// algoritm working.
+    #[cfg(feature = "voc_index")]
     #[inline]
     pub fn measure_voc_index_with_rht(&mut self, humidity: u16, temperature: i16) -> Result<u16, Error<E>> {
         let raw = self.measure_raw_with_rht(humidity, temperature)?;

@@ -15,8 +15,12 @@ fn main() {
     loop {
         // This is not the recommended way to operate the sensor but turned out to be
         // super useful when running two sensors parallel.
-        if let Ok(result) = sensor.measure_voc_index() {
-            println!("VOC index: {}", result);
+        if let Ok(result) =
+            #[cfg(feature="voc_index")]
+            sensor.measure_voc_index()
+            #[cfg(not(feature="voc_index"))]
+            sensor.measure_raw______() {
+            println!("VOC: {}", result);
         }
         else {
             println!("Failed I2C reading");

@@ -305,7 +305,9 @@ where
 
         let (hum_ticks, temp_ticks) = self.convert_rht(humidity as u32, temperature as i32);
 
-        let params = [hum_ticks.to_be_bytes(), temp_ticks.to_be_bytes()].concat();
+        let mut params = [0u8; 4];
+        params[0..2].copy_from_slice(&hum_ticks.to_be_bytes());
+        params[2..4].copy_from_slice(&temp_ticks.to_be_bytes());
 
         self.write_command_with_args(Command::MeasurementRaw, &params)?;
         i2c::read_words_with_crc(&mut self.i2c, self.address, &mut data)?;

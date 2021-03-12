@@ -40,7 +40,7 @@ fn main() -> ! {
 
     let i2c1 = Twim::new(p.TWIM1, pins1, twim::Frequency::K100);
 
-    let sgp40 = Sgp40::new(i2c1, 0x31, delay.clone());
+    let sgp40 = Sgp40::new(i2c1, 0x31, delay);
 
     loop {}
 }

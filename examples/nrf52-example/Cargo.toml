@@ -11,7 +11,7 @@ rtt-target = {version = "0.2.0", features = ["cortex-m"] }
 nrf52840-hal = "*"
 arrayvec = {version = "0.5.2", default-features = false }
 crc_all = "0.2.0"
-sgp40 = { path = "../../" }
+sgp40 = { path = "../../", default-features = false }
 
 [dependencies.embedded-hal]
 version = "0.2.3"

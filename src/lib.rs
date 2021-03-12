@@ -65,6 +65,10 @@
 //!     }
 //! }
 //! ```
+//! ### VOC Index calculation
+//! VOC index calculation is not no-std proof right now so if this is a problem for you, then
+//! you want to turn the feature off by turning "the defaults off". Work for no-std index calculation
+//! will start soon.
 #![cfg_attr(not(test), no_std)]
 #![allow(non_snake_case)]
 #![allow(dead_code)]

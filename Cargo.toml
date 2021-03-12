@@ -1,6 +1,6 @@
 [package]
 name = "sgp40"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Mikko Jaakkola <mikko.la.jaakkola@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "Rust driver for the Sensirion SGP40 gas sensor."

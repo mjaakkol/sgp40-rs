@@ -1,6 +1,6 @@
 [package]
 name = "sgp40"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Mikko Jaakkola <mikko.la.jaakkola@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "Rust driver for the Sensirion SGP40 gas sensor."
@@ -19,6 +19,9 @@ voc_index = []
 [dependencies]
 sensirion-i2c = "0.1"
 embedded-hal = "0.2"
+fixed = "1.6"
+fixed-macro = "1"
+fixed-sqrt = "0.2"
 
 [dev-dependencies]
 linux-embedded-hal = "0.3"

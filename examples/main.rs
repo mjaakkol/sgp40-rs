@@ -1,6 +1,6 @@
+use hal::{Delay, I2cdev};
 /// Sensirion SGP40 sensor device driver example.
 use linux_embedded_hal as hal;
-use hal::{Delay, I2cdev};
 
 use std::thread;
 use std::time::Duration;
@@ -17,8 +17,7 @@ fn main() {
         // super useful when running two sensors parallel.
         if let Ok(result) = sensor.measure_voc_index() {
             println!("VOC index: {}", result);
-        }
-        else {
+        } else {
             println!("Failed I2C reading");
         }
 

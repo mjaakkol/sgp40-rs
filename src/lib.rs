@@ -94,7 +94,7 @@ pub enum Error<E> {
     /// CRC checksum validation failed
     Crc,
     /// Self test failed
-    SelfTest
+    SelfTest,
 }
 
 impl<E, I2cWrite, I2cRead> From<i2c::Error<I2cWrite, I2cRead>> for Error<E>
@@ -137,7 +137,6 @@ impl Command {
             Command::MeasureTest => (0x280e, 250),
             //Command::FeatureSet => (0x202f, 1),
             Command::SoftReset => (0x0006, 1),
-
         }
     }
 }
@@ -170,7 +169,7 @@ where
             delay,
             temperature_offset: 0,
             #[cfg(feature = "voc_index")]
-            voc : VocAlgorithm::new(),
+            voc: VocAlgorithm::new(),
         }
     }
 
@@ -197,7 +196,7 @@ where
 
         let mut i = 2;
         for chunk in data.chunks(2) {
-            let end = i+2;
+            let end = i + 2;
             transfer_buffer[i..end].copy_from_slice(chunk);
             transfer_buffer[end] = crc8::calculate(chunk);
             i += 3;
@@ -237,7 +236,6 @@ where
             Ok(self)
         }
     }
-
 
     /// Turn sensor heater off and places it in idle-mode.
     ///
@@ -286,7 +284,6 @@ where
         Ok(self.voc.process(raw as i32) as u16)
     }
 
-
     /// Reads the raw signal from the sensor.
     ///
     /// Raw signal without temperature and humidity compensation. This is not
@@ -315,9 +312,8 @@ where
         Ok(u16::from_be_bytes([data[0], data[1]]))
     }
 
-
     // Returns tick converted values
-    fn convert_rht(&self, humidity: u32, temperature: i32) -> (u16, u16){
+    fn convert_rht(&self, humidity: u32, temperature: i32) -> (u16, u16) {
         let mut temperature = temperature;
         let mut humidity = humidity;
         if humidity > 100000 {
@@ -333,13 +329,13 @@ where
         }
 
         /* humidity_sensor_format = humidity / 100000 * 65535;
-            * 65535 / 100000 = 0.65535 -> 0.65535 * 2^5 = 20.9712 / 2^10 ~= 671
-        */
+         * 65535 / 100000 = 0.65535 -> 0.65535 * 2^5 = 20.9712 / 2^10 ~= 671
+         */
         let humidity_sensor_format = ((humidity * 671) >> 10) as u16;
 
         /* temperature_sensor_format[1] = (temperature + 45000) / 175000 * 65535;
-        * 65535 / 175000 ~= 0.375 -> 0.375 * 2^3 = 2.996 ~= 3
-        */
+         * 65535 / 175000 ~= 0.375 -> 0.375 * 2^3 = 2.996 ~= 3
+         */
         let temperature_sensor_format = (((temperature + 45000) * 3) >> 3) as u16;
 
         (humidity_sensor_format, temperature_sensor_format)
@@ -390,14 +386,21 @@ mod tests {
     use self::hal::i2c::{Mock as I2cMock, Transaction};
     use super::*;
 
-    const SGP40_ADDR:u8 = 0x59;
+    const SGP40_ADDR: u8 = 0x59;
 
     /// Tests that the commands without parameters work
     #[test]
     fn test_basic_command() {
         let (cmd, _) = Command::MeasurementRaw.as_tuple();
         let expectations = [
-            Transaction::write(SGP40_ADDR, [cmd.to_be_bytes().to_vec(), [0x7f, 0xfb, 0x4b, 0x66, 0x8a, 0x2f].to_vec()].concat()),
+            Transaction::write(
+                SGP40_ADDR,
+                [
+                    cmd.to_be_bytes().to_vec(),
+                    [0x7f, 0xfb, 0x4b, 0x66, 0x8a, 0x2f].to_vec(),
+                ]
+                .concat(),
+            ),
             Transaction::read(SGP40_ADDR, vec![0x12, 0x34, 0x37]),
         ];
         let mock = I2cMock::new(&expectations);
@@ -412,10 +415,7 @@ mod tests {
         let (cmd, _) = Command::Serial.as_tuple();
         let expectations = [
             Transaction::write(0x58, cmd.to_be_bytes().to_vec()),
-            Transaction::read(
-                0x58,
-                vec![0xde, 0xad, 0x98, 0xbe, 0xef, 0x92, 0xde, 0xad, 0x98],
-            ),
+            Transaction::read(0x58, vec![0xde, 0xad, 0x98, 0xbe, 0xef, 0x92, 0xde, 0xad, 0x98]),
         ];
         let mock = I2cMock::new(&expectations);
         let mut sensor = Sgp40::new(mock, 0x58, DelayMock);
@@ -434,9 +434,9 @@ mod tests {
         let mut sensor = Sgp40::new(mock, SGP40_ADDR, DelayMock);
 
         match sensor.self_test() {
-            Err(Error::Crc) => {},
+            Err(Error::Crc) => {}
             Err(_) => panic!("Unexpected error in CRC test"),
-            Ok(_) => panic!("Unexpected success in CRC test")
+            Ok(_) => panic!("Unexpected success in CRC test"),
         }
     }
 }

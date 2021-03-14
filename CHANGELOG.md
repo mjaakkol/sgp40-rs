@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+
+## 0.0.4 - 2021-03-14
+
+VOC index calculation doesn't seem to be in happy place and it requires more testing. However, as it is not any worse than before
+and the crate is no_std now, the new version is released.
+
+### Fixed
+
+- Software is no_std now.
+
+### Changed
+
+- VOC index algoritm is using Fixed-point math now to make it closer to the original and enable quick no_std implementation. The new implementation should also be a bit more accurate but time will tell.
+
+
 ## 0.0.3 - 2021-03-12
 
 ### Fixed
@@ -22,6 +37,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## 0.0.1 - 2021-02-09
 
 Initial release to crates.io.
+
+[1.0.0]: https://github.com/mjaakkol/sgp40-rs/compare/v0.0.3...v0.0.4
 
 [0.0.3]: https://github.com/mjaakkol/sgp40-rs/compare/v0.0.2...v0.0.3
 

@@ -30,46 +30,53 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+
 use fixed::{traits::FromFixed, types::I16F16};
-//use fixed_exp::FixedPowF;
-use fixed_macro::fixed;
 use fixed_sqrt::FixedSqrt;
 
 type Fix = I16F16;
 
+///macro_rules! alg_fixed {
+///    ($a:expr) => {{
+///        fixed!($a: I16F16)
+///    }};
+///}
+
 macro_rules! alg_fixed {
     ($a:expr) => {{
-        fixed!($a: I16F16)
+        Fix::from_num($a)
     }};
 }
 
-const SAMPLING_INTERVAL: Fix = fixed!(1: I16F16);
-const INITIAL_BLACKOUT: Fix = fixed!(45: I16F16);
-const VOC_INDEX_GAIN: Fix = fixed!(230: I16F16);
-const SRAW_STD_INITIAL: Fix = fixed!(50: I16F16);
-const SRAW_STD_BONUS: Fix = fixed!(220: I16F16);
-const TAU_MEAN_VARIANCE_HOURS: Fix = fixed!(12: I16F16);
-const TAU_INITIAL_MEAN: Fix = fixed!(20: I16F16);
-const INIT_DURATION_MEAN: Fix = fixed!(2700: I16F16); // 3600. * 0.75
-const INIT_TRANSITION_MEAN: Fix = fixed!(0.01: I16F16);
-const TAU_INITIAL_VARIANCE: Fix = fixed!(2500: I16F16);
-const INIT_DURATION_VARIANCE: Fix = fixed!(5200: I16F16); // 3600. * 1.45
-const INIT_TRANSITION_VARIANCE: Fix = fixed!(0.01: I16F16);
-const GATING_THRESHOLD: Fix = fixed!(340: I16F16);
-const GATING_THRESHOLD_INITIAL: Fix = fixed!(510: I16F16);
-const GATING_THRESHOLD_TRANSITION: Fix = fixed!(0.09: I16F16);
-const GATING_MAX_DURATION_MINUTES: Fix = fixed!(180: I16F16); // 60.0 * 3.0
-const GATING_MAX_RATIO: Fix = fixed!(0.3: I16F16);
-const SIGMOID_L: Fix = fixed!(500: I16F16);
-const SIGMOID_K: Fix = fixed!(-0.0065: I16F16);
-const SIGMOID_X0: Fix = fixed!(213: I16F16);
-const VOC_INDEX_OFFSET_DEFAULT: Fix = fixed!(100: I16F16);
-const LP_TAU_FAST: Fix = fixed!(20: I16F16);
-const LP_TAU_SLOW: Fix = fixed!(500: I16F16);
-const LP_ALPHA: Fix = fixed!(-0.2: I16F16);
-const PERSISTENCE_UPTIME_GAMMA: Fix = fixed!(10800: I16F16); // 3 * 3600
-const MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING: Fix = fixed!(64: I16F16);
-const MEAN_VARIANCE_ESTIMATOR__FIX16_MAX: Fix = fixed!(32767: I16F16);
+
+const SAMPLING_INTERVAL: Fix = Fix::from_bits(0x0001_0000);  // 1
+const INITIAL_BLACKOUT: Fix = Fix::from_bits(0x002D_0000); // 45
+const VOC_INDEX_GAIN: Fix = Fix::from_bits(0x00E6_0000); // 230
+const SRAW_STD_INITIAL: Fix = Fix::from_bits(0x0032_0000); //50
+const SRAW_STD_BONUS: Fix = Fix::from_bits(0x00DC_0000); //220
+const TAU_MEAN_VARIANCE_HOURS: Fix = Fix::from_bits(0x000C_0000); // 12
+const TAU_INITIAL_MEAN: Fix = Fix::from_bits(0x0014_0000); // 20
+const INIT_DURATION_MEAN: Fix = Fix::from_bits(0x0ABC_0000); // 3600. * 0.75
+const INIT_TRANSITION_MEAN: Fix = Fix::from_bits(0x0000_028F); // 0.01
+const TAU_INITIAL_VARIANCE: Fix = Fix::from_bits(0x09C4_0000); // 2500
+const INIT_DURATION_VARIANCE: Fix = Fix::from_bits(0x1450_0000); // 3600. * 1.45
+const INIT_TRANSITION_VARIANCE: Fix = Fix::from_bits(0x0000_028F); // 0.01
+const GATING_THRESHOLD: Fix = Fix::from_bits(0x0154_0000); // 340
+const GATING_THRESHOLD_INITIAL: Fix = Fix::from_bits(0x01FE_0000); // 510
+const GATING_THRESHOLD_TRANSITION: Fix = Fix::from_bits(0x0000_170A);  // 0.09
+const GATING_MAX_DURATION_MINUTES: Fix = Fix::from_bits(0x00B4_0000); // 60.0 * 3.0
+const GATING_MAX_RATIO: Fix = Fix::from_bits(0x0000_4CCD); // 0.3
+const SIGMOID_L: Fix = Fix::from_bits(0x01F4_0000); // 500
+//const SIGMOID_K: Fix = Fix::from_bits(0xFFFF_FE56); // -0.0065
+const SIGMOID_X0: Fix = Fix::from_bits(0x00D5_0000);  // 213
+const VOC_INDEX_OFFSET_DEFAULT: Fix = Fix::from_bits(0x0064_0000); // 100
+const LP_TAU_FAST: Fix = Fix::from_bits(0x0014_0000); // 20
+const LP_TAU_SLOW: Fix = Fix::from_bits(0x01F4_0000); // 500
+//const LP_ALPHA: Fix = Fix::from_bits(0xFFFF_CCCD); // -0.2
+const PERSISTENCE_UPTIME_GAMMA: Fix = Fix::from_bits(0x2A30_0000); // 500 // 3 * 3600
+const MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING: Fix = Fix::from_bits(0x0040_0000);
+const MEAN_VARIANCE_ESTIMATOR__FIX16_MAX: Fix = Fix::from_bits(0x7FFF_0000);
 
 // Stores VOC algorithm states
 pub struct VocAlgorithm {
@@ -478,6 +485,8 @@ impl SigmoidScaledInit {
     }
 
     fn process(&self, sample: Fix) -> Fix {
+
+        let SIGMOID_K = Fix::from_num(-0.0065);
         let x = SIGMOID_K * (sample - SIGMOID_X0);
 
         if x < alg_fixed!(-50) {
@@ -541,6 +550,9 @@ impl AdaptiveLowpass {
             self.initialized = true;
         }
 
+        // TODO: Hopefully, the future version of Fixed crates help me to make this const
+        let LP_ALPHA = Fix::from_num(-0.2);
+
         self.X1 = (alg_fixed!(1) - self.A1) * self.X1 + self.A1 * sample;
         self.X2 = (alg_fixed!(1) - self.A2) * self.X2 + self.A2 * sample;
 
@@ -558,6 +570,10 @@ impl AdaptiveLowpass {
 #[path = "test_vocalg.rs"]
 mod test_vocalg;
 mod tests {
+    // Removing the import will cause compiler error and having it will
+    // complain unused code. The unorthodox test file-split is causing
+    // the hassle.
+    #[allow(unused_imports)]
     use super::*;
 
     #[test]
@@ -568,7 +584,7 @@ mod tests {
         let mut ref_voc = test_vocalg::VocAlgorithm::new();
 
         for _ in 1..1000 {
-            value = voc.process(28_000);
+            let value = voc.process(28_000);
             let ref_value = ref_voc.process(28_000);
 
             assert!((value - ref_value).abs() <= epsilon);
@@ -601,44 +617,4 @@ mod tests {
             }
         }
     }
-
-    /* There is something wrong with VOC index algorithm. Not enabled yet
-    #[test]
-    fn min_value() {
-        let epsilon = 1;
-
-        let mut voc = VocAlgorithm::new();
-        let mut ref_voc = test_vocalg::VocAlgorithm::new();
-
-        let mut value = 0;
-
-        for _ in 1..10000 {
-            value = voc.process(52000);
-            let ref_value = ref_voc.process(52000);
-
-            assert!((value - ref_value).abs() <= epsilon);
-        }
-
-        assert_eq!(0, value);
-    }
-
-    #[test]
-    fn max_value() {
-        let epsilon = 1;
-
-        let mut voc = VocAlgorithm::new();
-        let mut ref_voc = test_vocalg::VocAlgorithm::new();
-
-        let mut value = 0;
-
-        for _ in 1..10000 {
-            value = voc.process(20_010);
-            let ref_value = ref_voc.process(20_010);
-
-            assert!((value - ref_value).abs() <= epsilon);
-        }
-
-        assert_eq!(500, value);
-    }
-    */
 }

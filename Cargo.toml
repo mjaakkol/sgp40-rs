@@ -20,7 +20,6 @@ voc_index = []
 sensirion-i2c = "0.1"
 embedded-hal = "0.2"
 fixed = "1.6"
-fixed-macro = "1"
 fixed-sqrt = "0.2"
 
 [dev-dependencies]

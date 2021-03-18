@@ -566,7 +566,7 @@ impl AdaptiveLowpass {
 }
 
 // Overall integration tests are needed as
-#[cfg(all(test, not(no_std)))]
+#[cfg(test)]
 #[path = "test_vocalg.rs"]
 mod test_vocalg;
 mod tests {

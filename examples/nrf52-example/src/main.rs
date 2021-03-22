@@ -27,8 +27,8 @@ fn main() -> ! {
 
     let pins_1 = hal::gpio::p1::Parts::new(p.P1);
 
-    let scl = pins_1.p1_13.into_floating_input().degrade();
-    let sda = pins_1.p1_15.into_floating_input().degrade();
+    let scl = pins_1.p1_15.into_floating_input().degrade();
+    let sda = pins_1.p1_13.into_floating_input().degrade();
 
     let pins = twim::Pins { scl, sda };
 
@@ -37,7 +37,7 @@ fn main() -> ! {
     let mut sensor = Sgp40::new(i2c, 0x59, delay);
 
     loop {
-        if let Ok(result) = sensor.measure_raw() {
+        if let Ok(result) = sensor.measure_voc_index() {
             rprintln!("VOC index: {}", result);
         } else {
             rprintln!("Failed I2C reading");

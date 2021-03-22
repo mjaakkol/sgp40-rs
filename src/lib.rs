@@ -24,10 +24,8 @@
 //! use hal::{Delay, I2cdev};
 //! use sgp40::Sgp40;
 //!
-//! fn main() {
-//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
-//!     let mut sgp = Sgp40::new(dev, 0x59, Delay);
-//! }
+//! let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//! let mut sgp = Sgp40::new(dev, 0x59, Delay);
 //! ```
 //! ### Doing Measurements
 //!
@@ -43,26 +41,24 @@
 //!
 //! use sgp40::Sgp40;
 //!
-//! fn main() {
-//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//! let dev = I2cdev::new("/dev/i2c-1").unwrap();
 //!
-//!     let mut sensor = Sgp40::new(dev, 0x59, Delay);
+//! let mut sensor = Sgp40::new(dev, 0x59, Delay);
 //!
-//!     // Discard the first 45 samples as the algorithm is just warming up.
-//!     for _ in 1..45 {
-//!         sensor.measure_voc_index().unwrap();
+//! // Discard the first 45 samples as the algorithm is just warming up.
+//! for _ in 1..45 {
+//!     sensor.measure_voc_index().unwrap();
+//! }
+//!
+//! loop {
+//!     if let Ok(result) = sensor.measure_voc_index() {
+//!         println!("VOC index: {}", result);
+//!     }
+//!     else {
+//!         println!("Failed I2C reading");
 //!     }
 //!
-//!     loop {
-//!         if let Ok(result) = sensor.measure_voc_index() {
-//!             println!("VOC index: {}", result);
-//!         }
-//!         else {
-//!             println!("Failed I2C reading");
-//!         }
-//!
-//!         thread::sleep(Duration::new(1_u64, 0));
-//!     }
+//!     thread::sleep(Duration::new(1_u64, 0));
 //! }
 //! ```
 //! ### VOC Index calculation

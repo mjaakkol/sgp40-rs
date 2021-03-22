@@ -30,8 +30,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-
 use fixed::{traits::FromFixed, types::I16F16};
 use fixed_sqrt::FixedSqrt;
 
@@ -49,8 +47,7 @@ macro_rules! alg_fixed {
     }};
 }
 
-
-const SAMPLING_INTERVAL: Fix = Fix::from_bits(0x0001_0000);  // 1
+const SAMPLING_INTERVAL: Fix = Fix::from_bits(0x0001_0000); // 1
 const INITIAL_BLACKOUT: Fix = Fix::from_bits(0x002D_0000); // 45
 const VOC_INDEX_GAIN: Fix = Fix::from_bits(0x00E6_0000); // 230
 const SRAW_STD_INITIAL: Fix = Fix::from_bits(0x0032_0000); //50
@@ -64,12 +61,12 @@ const INIT_DURATION_VARIANCE: Fix = Fix::from_bits(0x1450_0000); // 3600. * 1.45
 const INIT_TRANSITION_VARIANCE: Fix = Fix::from_bits(0x0000_028F); // 0.01
 const GATING_THRESHOLD: Fix = Fix::from_bits(0x0154_0000); // 340
 const GATING_THRESHOLD_INITIAL: Fix = Fix::from_bits(0x01FE_0000); // 510
-const GATING_THRESHOLD_TRANSITION: Fix = Fix::from_bits(0x0000_170A);  // 0.09
+const GATING_THRESHOLD_TRANSITION: Fix = Fix::from_bits(0x0000_170A); // 0.09
 const GATING_MAX_DURATION_MINUTES: Fix = Fix::from_bits(0x00B4_0000); // 60.0 * 3.0
 const GATING_MAX_RATIO: Fix = Fix::from_bits(0x0000_4CCD); // 0.3
 const SIGMOID_L: Fix = Fix::from_bits(0x01F4_0000); // 500
 //const SIGMOID_K: Fix = Fix::from_bits(0xFFFF_FE56); // -0.0065
-const SIGMOID_X0: Fix = Fix::from_bits(0x00D5_0000);  // 213
+const SIGMOID_X0: Fix = Fix::from_bits(0x00D5_0000); // 213
 const VOC_INDEX_OFFSET_DEFAULT: Fix = Fix::from_bits(0x0064_0000); // 100
 const LP_TAU_FAST: Fix = Fix::from_bits(0x0014_0000); // 20
 const LP_TAU_SLOW: Fix = Fix::from_bits(0x01F4_0000); // 500
@@ -349,7 +346,7 @@ impl MeanVarianceEstimator {
     }
 
     fn process(&mut self, sraw: Fix, voc_index_from_prior: Fix) {
-        if self.initialized == false {
+        if !self.initialized {
             self.initialized = true;
             self.sraw_offset = sraw;
             self.mean = alg_fixed!(0);
@@ -412,13 +409,13 @@ impl MeanVarianceEstimatorSigmoid {
         }
 
         if x < alg_fixed!(-50) {
-            return self.L;
+            self.L
         } else if x > alg_fixed!(50) {
-            return alg_fixed!(0);
+            alg_fixed!(0)
         } else {
             let result = self.L / (alg_fixed!(1) + fixed_exp(x));
             //println!("Sigmoid:{}", result);
-            return result;
+            result
         }
     }
 
@@ -432,7 +429,7 @@ impl MeanVarianceEstimatorSigmoid {
 // Needs new implementation as the original code prevents going above 16-bit ranges
 fn fixed_exp(x: Fix) -> Fix {
     let exp_pos_values = [
-        alg_fixed!(2.7182818),
+        alg_fixed!(core::f64::consts::E),
         alg_fixed!(1.1331485),
         alg_fixed!(1.0157477),
         alg_fixed!(1.0019550),
@@ -485,22 +482,21 @@ impl SigmoidScaledInit {
     }
 
     fn process(&self, sample: Fix) -> Fix {
-
         let SIGMOID_K = Fix::from_num(-0.0065);
         let x = SIGMOID_K * (sample - SIGMOID_X0);
 
         if x < alg_fixed!(-50) {
-            return SIGMOID_L;
+            SIGMOID_L
         } else if x > alg_fixed!(50) {
-            return alg_fixed!(0);
+            alg_fixed!(0)
         } else {
             //println!("Sample {}, offset:{} X:{}", sample, self.offset, x);
             if sample >= alg_fixed!(0) {
                 let shift = (SIGMOID_L - (alg_fixed!(5) * self.offset)) / alg_fixed!(4);
-                return ((SIGMOID_L + shift) / (alg_fixed!(1) + fixed_exp(x))) - shift;
+                ((SIGMOID_L + shift) / (alg_fixed!(1) + fixed_exp(x))) - shift
             } else {
                 //println!("X^{}", SigmoidScaledInit::exp(x));
-                return (self.offset / VOC_INDEX_OFFSET_DEFAULT) * (SIGMOID_L / (alg_fixed!(1) + fixed_exp(x)));
+                (self.offset / VOC_INDEX_OFFSET_DEFAULT) * (SIGMOID_L / (alg_fixed!(1) + fixed_exp(x)))
             }
         }
     }
@@ -543,7 +539,7 @@ impl AdaptiveLowpass {
     }
 
     fn process(&mut self, sample: Fix) -> Fix {
-        if self.initialized == false {
+        if !self.initialized {
             self.X1 = sample;
             self.X2 = sample;
             self.X3 = sample;

@@ -30,23 +30,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-use fixed::{traits::FromFixed, types::I16F16};
+use fixed::{
+    traits::FromFixed,
+    types::I16F16,
+    consts::E
+};
 use fixed_sqrt::FixedSqrt;
 
 type Fix = I16F16;
 
-///macro_rules! alg_fixed {
-///    ($a:expr) => {{
-///        fixed!($a: I16F16)
-///    }};
-///}
-
+use fixed_macro::fixed;
 macro_rules! alg_fixed {
     ($a:expr) => {{
-        Fix::from_num($a)
+        fixed!($a: I16F16)
     }};
 }
 
+///macro_rules! alg_fixed {
+///    ($a:expr) => {{
+///        Fix::from_num($a)
+///    }};
+///}
+
+const ZERO: Fix = Fix::from_bits(0x0000_0000); // 1
 const SAMPLING_INTERVAL: Fix = Fix::from_bits(0x0001_0000); // 1
 const INITIAL_BLACKOUT: Fix = Fix::from_bits(0x002D_0000); // 45
 const VOC_INDEX_GAIN: Fix = Fix::from_bits(0x00E6_0000); // 230
@@ -104,9 +110,9 @@ impl VocAlgorithm {
             tau_mean_variance_hours: TAU_MEAN_VARIANCE_HOURS,
             gating_max_duration_minutes: GATING_MAX_DURATION_MINUTES,
             sraw_std_initial: SRAW_STD_INITIAL,
-            uptime: alg_fixed!(0),
-            sraw: alg_fixed!(0),
-            voc_index: alg_fixed!(0),
+            uptime: ZERO,
+            sraw: ZERO,
+            voc_index: ZERO,
             mean_variance_estimator,
             mox_model,
             sigmoid_scaled,
@@ -233,18 +239,18 @@ struct MeanVarianceEstimator {
 impl MeanVarianceEstimator {
     fn new() -> Self {
         MeanVarianceEstimator {
-            gating_max_duration_minutes: alg_fixed!(0),
-            mean: alg_fixed!(0),
-            sraw_offset: alg_fixed!(0),
-            std: alg_fixed!(0),
-            gamma: alg_fixed!(0),
-            gamma_initial_mean: alg_fixed!(0),
-            gamma_initial_variance: alg_fixed!(0),
-            gamma_mean: alg_fixed!(0),
-            gamma_variance: alg_fixed!(0),
-            uptime_gamma: alg_fixed!(0),
-            uptime_gating: alg_fixed!(0),
-            gating_duration_minutes: alg_fixed!(0),
+            gating_max_duration_minutes: ZERO,
+            mean: ZERO,
+            sraw_offset: ZERO,
+            std: ZERO,
+            gamma: ZERO,
+            gamma_initial_mean: ZERO,
+            gamma_initial_variance: ZERO,
+            gamma_mean: ZERO,
+            gamma_variance: ZERO,
+            uptime_gamma: ZERO,
+            uptime_gating: ZERO,
+            gating_duration_minutes: ZERO,
             sigmoid: MeanVarianceEstimatorSigmoid::new(),
             initialized: false,
         }
@@ -253,8 +259,8 @@ impl MeanVarianceEstimator {
     fn set_parameters(&mut self, std_initial: Fix, tau_mean_variance_hours: Fix, gating_max_duration_minutes: Fix) {
         self.gating_max_duration_minutes = gating_max_duration_minutes;
         self.initialized = false;
-        self.mean = alg_fixed!(0);
-        self.sraw_offset = alg_fixed!(0);
+        self.mean = ZERO;
+        self.sraw_offset = ZERO;
         self.std = std_initial;
         self.gamma = (MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING * (SAMPLING_INTERVAL / alg_fixed!(3600)))
             / (tau_mean_variance_hours + SAMPLING_INTERVAL / alg_fixed!(3600));
@@ -262,11 +268,11 @@ impl MeanVarianceEstimator {
             (MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING * SAMPLING_INTERVAL) / (TAU_INITIAL_MEAN + SAMPLING_INTERVAL);
         self.gamma_initial_variance =
             (MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING * SAMPLING_INTERVAL) / (TAU_INITIAL_VARIANCE + SAMPLING_INTERVAL);
-        self.gamma_mean = alg_fixed!(0);
-        self.gamma_variance = alg_fixed!(0);
-        self.uptime_gamma = alg_fixed!(0);
-        self.uptime_gating = alg_fixed!(0);
-        self.gating_duration_minutes = alg_fixed!(0);
+        self.gamma_mean = ZERO;
+        self.gamma_variance = ZERO;
+        self.uptime_gamma = ZERO;
+        self.uptime_gating = ZERO;
+        self.gating_duration_minutes = ZERO;
     }
 
     fn set_states(&mut self, mean: Fix, std: Fix, uptime_gamma: Fix) {
@@ -336,12 +342,12 @@ impl MeanVarianceEstimator {
         self.gating_duration_minutes += (SAMPLING_INTERVAL / alg_fixed!(60))
             * (((alg_fixed!(1) - sigmoid_gating_mean) * (alg_fixed!(1) + GATING_MAX_RATIO)) - GATING_MAX_RATIO);
 
-        if self.gating_duration_minutes < alg_fixed!(0) {
-            self.gating_duration_minutes = alg_fixed!(0);
+        if self.gating_duration_minutes < ZERO {
+            self.gating_duration_minutes = ZERO;
         }
 
         if self.gating_duration_minutes > self.gating_max_duration_minutes {
-            self.uptime_gating = alg_fixed!(0);
+            self.uptime_gating = ZERO;
         }
     }
 
@@ -349,11 +355,11 @@ impl MeanVarianceEstimator {
         if !self.initialized {
             self.initialized = true;
             self.sraw_offset = sraw;
-            self.mean = alg_fixed!(0);
+            self.mean = ZERO;
         } else {
             if self.mean >= alg_fixed!(100) || self.mean <= alg_fixed!(-100) {
                 self.sraw_offset += self.mean;
-                self.mean = alg_fixed!(0);
+                self.mean = ZERO;
                 //println!("Mean reset");
             }
 
@@ -379,7 +385,6 @@ impl MeanVarianceEstimator {
                     .sqrt();
 
             self.mean += self.gamma_mean * delta_sgp;
-
             //println!("Final mean:{} std:{}", self.mean, self.std);
         }
     }
@@ -394,9 +399,9 @@ struct MeanVarianceEstimatorSigmoid {
 impl MeanVarianceEstimatorSigmoid {
     fn new() -> Self {
         MeanVarianceEstimatorSigmoid {
-            L: alg_fixed!(0),
-            K: alg_fixed!(0),
-            X0: alg_fixed!(0),
+            L: ZERO,
+            K: ZERO,
+            X0: ZERO,
         }
     }
 
@@ -405,13 +410,13 @@ impl MeanVarianceEstimatorSigmoid {
 
         //println!("Sigmoid: sample:{} x:{}", sample, x);
         if b {
-            return alg_fixed!(0);
+            return ZERO;
         }
 
         if x < alg_fixed!(-50) {
             self.L
         } else if x > alg_fixed!(50) {
-            alg_fixed!(0)
+            ZERO
         } else {
             let result = self.L / (alg_fixed!(1) + fixed_exp(x));
             //println!("Sigmoid:{}", result);
@@ -429,7 +434,7 @@ impl MeanVarianceEstimatorSigmoid {
 // Needs new implementation as the original code prevents going above 16-bit ranges
 fn fixed_exp(x: Fix) -> Fix {
     let exp_pos_values = [
-        alg_fixed!(core::f64::consts::E),
+        Fix::from_fixed(E),
         alg_fixed!(1.1331485),
         alg_fixed!(1.0157477),
         alg_fixed!(1.0019550),
@@ -446,12 +451,12 @@ fn fixed_exp(x: Fix) -> Fix {
         // dealt here (won't have significant impact to the formulas)
         MEAN_VARIANCE_ESTIMATOR__FIX16_MAX - alg_fixed!(1)
     } else if x <= alg_fixed!(-11.7835) {
-        alg_fixed!(0)
+        ZERO
     } else {
         // I guess we need to calculate (read:approximate this)
         let mut x = x;
 
-        let val = if x < alg_fixed!(0) {
+        let val = if x < ZERO {
             x = -x;
             exp_neg_values
         } else {
@@ -488,7 +493,7 @@ impl SigmoidScaledInit {
         if x < alg_fixed!(-50) {
             SIGMOID_L
         } else if x > alg_fixed!(50) {
-            alg_fixed!(0)
+            ZERO
         } else {
             //println!("Sample {}, offset:{} X:{}", sample, self.offset, x);
             if sample >= alg_fixed!(0) {
@@ -532,9 +537,9 @@ impl AdaptiveLowpass {
             A1: SAMPLING_INTERVAL / (LP_TAU_FAST + SAMPLING_INTERVAL),
             A2: SAMPLING_INTERVAL / (LP_TAU_SLOW + SAMPLING_INTERVAL),
             initialized: false,
-            X1: alg_fixed!(0),
-            X2: alg_fixed!(0),
-            X3: alg_fixed!(0),
+            X1: ZERO,
+            X2: ZERO,
+            X3: ZERO,
         }
     }
 

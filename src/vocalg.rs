@@ -39,18 +39,17 @@ use fixed_sqrt::FixedSqrt;
 
 type Fix = I16F16;
 
-use fixed_macro::fixed;
+//use fixed_macro::fixed;
+//macro_rules! alg_fixed {
+//    ($a:expr) => {{
+//        fixed!($a: I16F16)
+//    }};
+
 macro_rules! alg_fixed {
     ($a:expr) => {{
-        fixed!($a: I16F16)
+        Fix::from_num($a)
     }};
 }
-
-///macro_rules! alg_fixed {
-///    ($a:expr) => {{
-///        Fix::from_num($a)
-///    }};
-///}
 
 const ZERO: Fix = Fix::from_bits(0x0000_0000); // 1
 const SAMPLING_INTERVAL: Fix = Fix::from_bits(0x0001_0000); // 1

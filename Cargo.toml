@@ -17,14 +17,17 @@ default = ["voc_index"]
 voc_index = []
 
 [dependencies]
-sensirion-i2c = "0.1"
-embedded-hal = "0.2"
+sensirion-i2c = "0.2"
+embedded-hal = { version = "1.0.0" }
 fixed = "1"
 fixed-sqrt = "0.2"
 
 [dev-dependencies]
-linux-embedded-hal = "0.3"
-embedded-hal-mock = "0.7"
+linux-embedded-hal = "0.4"
+embedded-hal-mock = { version = "0.10", features = ["eh1"] }
+
+[patch.crates-io]
+sensirion-i2c = { git = "https://github.com/LechevSpace/sensirion-i2c", branch = "feat/embedded-hal-1" }
 
 [profile.release]
 lto = true

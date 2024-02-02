@@ -71,8 +71,8 @@
 
 use embedded_hal as hal;
 
-use hal::blocking::delay::DelayMs;
-use hal::blocking::i2c::{Read, Write, WriteRead};
+use hal::delay::DelayNs;
+use hal::i2c::I2c;
 
 use sensirion_i2c::{crc8, i2c};
 
@@ -93,12 +93,11 @@ pub enum Error<E> {
     SelfTest,
 }
 
-impl<E, I2cWrite, I2cRead> From<i2c::Error<I2cWrite, I2cRead>> for Error<E>
+impl<E, I> From<i2c::Error<I>> for Error<E>
 where
-    I2cWrite: Write<Error = E>,
-    I2cRead: Read<Error = E>,
+    I: I2c<Error = E>,
 {
-    fn from(err: i2c::Error<I2cWrite, I2cRead>) -> Self {
+    fn from(err: i2c::Error<I>) -> Self {
         match err {
             i2c::Error::Crc => Error::Crc,
             i2c::Error::I2cWrite(e) => Error::I2c(e),
@@ -154,8 +153,8 @@ pub struct Sgp40<I2C, D> {
 
 impl<I2C, D, E> Sgp40<I2C, D>
 where
-    I2C: Read<Error = E> + Write<Error = E> + WriteRead<Error = E>,
-    D: DelayMs<u32>,
+    I2C: hal::i2c::I2c<Error = E>,
+    D: DelayNs,
 {
     /// Creates Sgp40 driver
     pub fn new(i2c: I2C, address: u8, delay: D) -> Self {
@@ -209,7 +208,7 @@ where
     /// Writes commands without additional arguments.
     fn write_command(&mut self, cmd: Command) -> Result<(), Error<E>> {
         let (command, delay) = cmd.as_tuple();
-        i2c::write_command(&mut self.i2c, self.address, command).map_err(Error::I2c)?;
+        i2c::write_command_u16(&mut self.i2c, self.address, command).map_err(Error::I2c)?;
         self.delay.delay_ms(delay);
         Ok(())
     }
@@ -376,11 +375,14 @@ where
 // the real sensor testing, the basic flows in the command structure has been caught.
 #[cfg(test)]
 mod tests {
-    use embedded_hal_mock as hal;
+    use embedded_hal_mock as mock_hal;
 
-    use self::hal::delay::MockNoop as DelayMock;
-    use self::hal::i2c::{Mock as I2cMock, Transaction};
     use super::*;
+
+    use mock_hal::eh1::{
+        delay::NoopDelay,
+        i2c::{Mock as I2cMock, Transaction},
+    };
 
     const SGP40_ADDR: u8 = 0x59;
 
@@ -399,10 +401,11 @@ mod tests {
             ),
             Transaction::read(SGP40_ADDR, vec![0x12, 0x34, 0x37]),
         ];
-        let mock = I2cMock::new(&expectations);
-        let mut sensor = Sgp40::new(mock, SGP40_ADDR, DelayMock);
+        let mut mock = I2cMock::new(&expectations);
+        let mut sensor = Sgp40::new(mock.clone(), SGP40_ADDR, NoopDelay);
         let result = sensor.measure_raw().unwrap();
         assert_eq!(result, 0x1234);
+        mock.done();
     }
 
     /// Test the `serial` function
@@ -413,10 +416,11 @@ mod tests {
             Transaction::write(0x58, cmd.to_be_bytes().to_vec()),
             Transaction::read(0x58, vec![0xde, 0xad, 0x98, 0xbe, 0xef, 0x92, 0xde, 0xad, 0x98]),
         ];
-        let mock = I2cMock::new(&expectations);
-        let mut sensor = Sgp40::new(mock, 0x58, DelayMock);
+        let mut mock = I2cMock::new(&expectations);
+        let mut sensor = Sgp40::new(mock.clone(), 0x58, NoopDelay);
         let serial = sensor.serial().unwrap();
         assert_eq!(serial, 0x00deadbeefdead);
+        mock.done();
     }
 
     #[test]
@@ -426,13 +430,14 @@ mod tests {
             Transaction::write(SGP40_ADDR, cmd.to_be_bytes().to_vec()),
             Transaction::read(SGP40_ADDR, vec![0xD4, 0x00, 0x00]),
         ];
-        let mock = I2cMock::new(&expectations);
-        let mut sensor = Sgp40::new(mock, SGP40_ADDR, DelayMock);
+        let mut mock = I2cMock::new(&expectations);
+        let mut sensor = Sgp40::new(mock.clone(), SGP40_ADDR, NoopDelay);
 
         match sensor.self_test() {
             Err(Error::Crc) => {}
             Err(_) => panic!("Unexpected error in CRC test"),
             Ok(_) => panic!("Unexpected success in CRC test"),
         }
+        mock.done();
     }
 }

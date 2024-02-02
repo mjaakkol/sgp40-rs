@@ -19,7 +19,7 @@ The sensor is feature complete and the future development evolves:
 - Storing and setting states haven't been tested yet.
 - VOC index follows pretty closely with C implementation values but the jury is still out there to ponder if the algoritm truly calculates things properly.
 - Serial number fetching is not working yet.
-- Moving into using Embedded-hal 1.x
+- [x] Moving into using Embedded-hal 1.x
 
 
 ## License

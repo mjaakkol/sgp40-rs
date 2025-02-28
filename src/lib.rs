@@ -317,11 +317,7 @@ where
 
         temperature += self.temperature_offset as i32;
 
-        if temperature < -45000 {
-            temperature = -45000;
-        } else if temperature > 129760 {
-            temperature = 129760;
-        }
+        temperature = temperature.clamp(-45000, 129760);
 
         /* humidity_sensor_format = humidity / 100000 * 65535;
          * 65535 / 100000 = 0.65535 -> 0.65535 * 2^5 = 20.9712 / 2^10 ~= 671
@@ -361,11 +357,11 @@ where
 
         self.delayed_read_cmd(Command::Serial, &mut serial)?;
 
-        let serial = u64::from(serial[0]) << 40
-            | u64::from(serial[1]) << 32
-            | u64::from(serial[3]) << 24
-            | u64::from(serial[4]) << 16
-            | u64::from(serial[6]) << 8
+        let serial = (u64::from(serial[0]) << 40)
+            | (u64::from(serial[1]) << 32)
+            | (u64::from(serial[3]) << 24)
+            | (u64::from(serial[4]) << 16)
+            | (u64::from(serial[6]) << 8)
             | u64::from(serial[7]);
         Ok(serial)
     }

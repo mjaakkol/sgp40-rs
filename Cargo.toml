@@ -8,7 +8,7 @@ readme = "README.md"
 repository = "https://github.com/mjaakkol/sgp40-rs"
 keywords = ["sgp40", "sensirion", "driver", "voc", "embedded-hal-driver"]
 categories = ["embedded", "hardware-support", "no-std"]
-edition = "2018"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,17 +17,14 @@ default = ["voc_index"]
 voc_index = []
 
 [dependencies]
-sensirion-i2c = "0.2"
-embedded-hal = { version = "1.0.0" }
-fixed = "1"
-fixed-sqrt = "0.2"
+sensirion-i2c = "0.4"
+embedded-hal = { version = "1.0" }
+fixed = "1.29"
 
 [dev-dependencies]
 linux-embedded-hal = "0.4"
-embedded-hal-mock = { version = "0.10", features = ["eh1"] }
+embedded-hal-mock = { version = "0.11", features = ["eh1"] }
 
-[patch.crates-io]
-sensirion-i2c = { git = "https://github.com/LechevSpace/sensirion-i2c", branch = "feat/embedded-hal-1" }
 
 [profile.release]
 lto = true

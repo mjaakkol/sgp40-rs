@@ -35,7 +35,6 @@ use fixed::{
     types::I16F16,
     consts::E
 };
-use fixed_sqrt::FixedSqrt;
 
 type Fix = I16F16;
 
@@ -417,9 +416,7 @@ impl MeanVarianceEstimatorSigmoid {
         } else if x > alg_fixed!(50) {
             ZERO
         } else {
-            let result = self.L / (alg_fixed!(1) + fixed_exp(x));
-            //println!("Sigmoid:{}", result);
-            result
+            self.L / (alg_fixed!(1) + fixed_exp(x))
         }
     }
 

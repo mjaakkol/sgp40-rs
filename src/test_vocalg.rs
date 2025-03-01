@@ -401,11 +401,7 @@ impl MeanVarianceEstimatorSigmoid {
 // Needs new implementation as the original code prevents going above 16-bit ranges
 fn fixed_exp(x: f32) -> f32 {
     let result = x.exp();
-    if result > 32768.0 {
-        32768.0
-    } else {
-        result
-    }
+    if result > 32768.0 { 32768.0 } else { result }
 }
 
 struct SigmoidScaledInit {

@@ -15,11 +15,7 @@ Sensirion SGP40 is 2nd generation low-power accurate gas sensor for air quality 
 Datasheet: https://www.sensirion.com/file/datasheet_sgp40
 
 ## Development status
-The sensor is feature complete and the future development evolves:
-- Storing and setting states haven't been tested yet.
-- VOC index follows pretty closely with C implementation values but the jury is still out there to ponder if the algoritm truly calculates things properly.
-- Serial number fetching is not working yet.
-- [x] Moving into using Embedded-hal 1.x
+The crate is feature complete.
 
 
 ## License

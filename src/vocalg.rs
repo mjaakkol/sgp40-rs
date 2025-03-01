@@ -30,11 +30,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-use fixed::{
-    traits::FromFixed,
-    types::I16F16,
-    consts::E
-};
+use fixed::{consts::E, traits::FromFixed, types::I16F16};
 
 type Fix = I16F16;
 
@@ -45,9 +41,7 @@ type Fix = I16F16;
 //    }};
 
 macro_rules! alg_fixed {
-    ($a:expr) => {{
-        Fix::from_num($a)
-    }};
+    ($a:expr) => {{ Fix::from_num($a) }};
 }
 
 const ZERO: Fix = Fix::from_bits(0x0000_0000); // 1
